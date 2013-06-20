@@ -22,7 +22,7 @@ def readTiles(fPtr, tw, th):
         
 
 with open(sys.argv[1], 'rb') as fPtr:
-    fPtr = open(r"E:\PVRTC\title.bin", 'rb')
+    fPtr = open(r"E:\SAOPicOut\title.bin", 'rb')
     startAddr = 0xe40
         
     fPtr.seek(startAddr + 0x24)    
@@ -61,35 +61,60 @@ with open(sys.argv[1], 'rb') as fPtr:
     fPtr.seek(palBaseAddr)
     palBuf = fPtr.read(4 * palNum)
 
-    
-    #for fileN in xrange(20):
+     
+    tarW = width
+    tarH = height
+    pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
+
+    for picY in xrange(tarH):
+        for picX in xrange(tarW):
+            srcY = picY # + 2
+            srcX = picX # + 2
+            tileOut = srcY / tileH * tileInW + srcX / tileW
+            tileIn  = srcY % tileH * tileW + srcX % tileW 
+            getInd = ord(tileArray[tileOut][tileIn])
+            
+            baseAddr = palNum - 256
+            #if blockInfo[blkInd][5] == '\x04\x03':
+            
+            # getInd = (getInd & (blockInfo[blkInd][7] << blockInfo[blkInd][6])) >> blockInfo[blkInd][6]
+
+
+            colBuf = palBuf[4 * (baseAddr + getInd): 4 * (baseAddr + getInd) + 4]
+            pixBuf[picY*tarW + picX] = (ord(colBuf[0]), ord(colBuf[1]), ord(colBuf[2]), ord(colBuf[3]))
+                
+        #from PIL import Image
+        #im = Image.new('RGBA', (tarW, tarH))
+        #im.putdata(tuple(pixBuf))
+        #im.save(r'E:\PVRTC\test3\part' + str(blkInd) + '.png')
 
     
-    #import random
-    #for blkInd in random.sample(xrange(blockNum), 5) :
+    from PIL import Image
+    im = Image.new('RGBA', (tarW, tarH))
+    im.putdata(tuple(pixBuf))
+    #im.save(r'E:/test/' + str(fileN) + '.png')
+    im.save(r'E:/test/full6_3.png') 
     
-    #tarW = width
-    #tarH = height
-    #pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
+    tarW = width
+    tarH = height
+    pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
 
-    for blkInd in xrange(blockNum) : 
+    for blkInd in xrange(blockNum-1, -1, -1) : 
         tarW = width
         tarH = height
         pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
         for picY in xrange(blockInfo[blkInd][1], blockInfo[blkInd][1] + blockInfo[blkInd][3]):
             for picX in xrange(blockInfo[blkInd][0], blockInfo[blkInd][2] + blockInfo[blkInd][2]):
-                if blockInfo[blkInd][6] == 0:
-                    continue
                 srcY = picY # + 2
                 srcX = picX # + 2
                 tileOut = srcY / tileH * tileInW + srcX / tileW
                 tileIn  = srcY % tileH * tileW + srcX % tileW 
                 getInd = ord(tileArray[tileOut][tileIn])
                 
-                baseAddr = blockInfo[blkInd][4] * 0x10
+                baseAddr = 0
                 #if blockInfo[blkInd][5] == '\x04\x03':
                 
-                getInd = (getInd & (blockInfo[blkInd][7] << blockInfo[blkInd][6])) >> blockInfo[blkInd][6]
+                # getInd = (getInd & (blockInfo[blkInd][7] << blockInfo[blkInd][6])) >> blockInfo[blkInd][6]
 
 
                 colBuf = palBuf[4 * (baseAddr + getInd): 4 * (baseAddr + getInd) + 4]
@@ -98,16 +123,115 @@ with open(sys.argv[1], 'rb') as fPtr:
         from PIL import Image
         im = Image.new('RGBA', (tarW, tarH))
         im.putdata(tuple(pixBuf))
-        im.save(r'E:\PVRTC\test3\part' + str(blkInd) + '.png')
+        im.save(r'E:\test\test1\part' + str(blkInd) + '.png')
+
+    flag = [False] * blockNum
+    from PIL import Image
+    im = Image.new('RGBA', (tarW, tarH))
+    im.putdata(tuple(pixBuf))
+    #im.save(r'E:/test/' + str(fileN) + '.png')
+    im.save(r'E:/test/full6_0.png')    
+
+    tarW = width
+    tarH = height
+    pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
+
+    for blkInd in xrange(blockNum-1, -1, -1) : 
+        if blockInfo[blkInd][6] == 4:
+            continue
+        #tarW = width
+        #tarH = height
+        #pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
+        for picY in xrange(blockInfo[blkInd][1], blockInfo[blkInd][1] + blockInfo[blkInd][3]):
+            for picX in xrange(blockInfo[blkInd][0], blockInfo[blkInd][2] + blockInfo[blkInd][2]):
+                srcY = picY  + 2
+                srcX = picX  + 2
+                tileOut = srcY / tileH * tileInW + srcX / tileW
+                tileIn  = srcY % tileH * tileW + srcX % tileW 
+                getInd = ord(tileArray[tileOut][tileIn])
+                
+                baseAddr = blockInfo[blkInd][4] * 0x10
+
+                #if getInd & 0xf0 != 0 and not flag[blkInd] and blockInfo[blkInd][7] == 0xf:
+                    #print 'X = %d, Y = %d, value = %d' % (picX, picY, getInd)
+                    #flag[blkInd] = True
+                getInd = getInd & blockInfo[blkInd][7]
+                # getInd = (getInd & (blockInfo[blkInd][7] << blockInfo[blkInd][6])) >> blockInfo[blkInd][6]
+
+
+                colBuf = palBuf[4 * (baseAddr + getInd): 4 * (baseAddr + getInd) + 4]
+                pixBuf[picY*tarW + picX] = (ord(colBuf[0]), ord(colBuf[1]), ord(colBuf[2]), ord(colBuf[3]))
+                
+        #from PIL import Image
+        #im = Image.new('RGBA', (tarW, tarH))
+        #im.putdata(tuple(pixBuf))
+        #im.save(r'E:\test\test1\part' + str(blkInd) + '.png')
+
+
+    for i,flg in enumerate(flag):
+        if flg:
+            print 'block %d error' % i
+    
+    from PIL import Image
+    im = Image.new('RGBA', (tarW, tarH))
+    im.putdata(tuple(pixBuf))
+    #im.save(r'E:/test/' + str(fileN) + '.png')
+    im.save(r'E:/test/full6_1.png')    
+   
+    tarW = width
+    tarH = height
+    pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
+    
+    flag = [False] * blockNum
+    
+    for blkInd in xrange(blockNum-1, -1, -1) :         
+        if blockInfo[blkInd][6] != 4:
+            continue
+        tarW = width
+        tarH = height
+        pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
+        for picY in xrange(blockInfo[blkInd][1], blockInfo[blkInd][1] + blockInfo[blkInd][3]):
+            for picX in xrange(blockInfo[blkInd][0], blockInfo[blkInd][2] + blockInfo[blkInd][2]):
+                srcY = picY # + 2
+                srcX = picX # + 2
+                tileOut = srcY / tileH * tileInW + srcX / tileW
+                tileIn  = srcY % tileH * tileW + srcX % tileW 
+                getInd = ord(tileArray[tileOut][tileIn])
+                
+                #if getInd & 0xf != 0 and not flag[blkInd] and blockInfo[blkInd][7] == 0xf:
+                    #print 'X = %d, Y = %d, value = %d' % (picX, picY, getInd)
+                    #flag[blkInd] = True
+                baseAddr = blockInfo[blkInd][4] * 0x10
+                #if blockInfo[blkInd][5] == '\x04\x03':
+                
+                #getInd = (getInd & (blockInfo[blkInd][7] << blockInfo[blkInd][6])) >> blockInfo[blkInd][6]
+                getInd = (getInd & 0xf0) >> 4
+
+                colBuf = palBuf[4 * (baseAddr + getInd): 4 * (baseAddr + getInd) + 4]
+                pixBuf[picY*tarW + picX] = (ord(colBuf[0]), ord(colBuf[1]), ord(colBuf[2]), ord(colBuf[3]))
+                
+        from PIL import Image
+        im = Image.new('RGBA', (tarW, tarH))
+        im.putdata(tuple(pixBuf))
+        im.save(r'E:\test\test2\part' + str(blkInd) + '.png')
 
     
     from PIL import Image
     im = Image.new('RGBA', (tarW, tarH))
     im.putdata(tuple(pixBuf))
     #im.save(r'E:/test/' + str(fileN) + '.png')
-    im.save(r'E:/PVRTC/full4.png')
+    im.save(r'E:/test/full6_2.png')
     
+    print '================'
+    for i,flg in enumerate(flag):
+        if flg:
+            print 'block %d error' % i
     for blkInd in xrange(blockNum):
+        #print 'Start x = %d, y = %d, endx = %d, endy = %d' % \
+        #                    (blockInfo[blkInd][0], \
+        #                     blockInfo[blkInd][1], \
+        #                     blockInfo[blkInd][0] + blockInfo[blkInd][2], \
+        #                     blockInfo[blkInd][1] + blockInfo[blkInd][3]),
         print 'palInd = %d, offset = %02x, andNum = %02x' % (blockInfo[blkInd][4], blockInfo[blkInd][6], blockInfo[blkInd][7])
         
 #    
