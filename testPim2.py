@@ -22,6 +22,7 @@ def readTiles(fPtr, tw, th):
         
 
 with open(sys.argv[1], 'rb') as fPtr:
+    fPtr = open(r"E:\PVRTC\title.bin", 'rb')
     startAddr = 0xe40
         
     fPtr.seek(startAddr + 0x24)    
@@ -53,8 +54,9 @@ with open(sys.argv[1], 'rb') as fPtr:
         offY = struct.unpack('<H', fPtr.read(2))[0]
         pal16ind = struct.unpack('<H', fPtr.read(2))[0]
         info1 = fPtr.read(2)
-        info2 = fPtr.read(2)
-        blockInfo.append([posX, posY, offX, offY, pal16ind, info1, info2])
+        offset = ord(fPtr.read(1))
+        andNum = ord(fPtr.read(1))
+        blockInfo.append([posX, posY, offX, offY, pal16ind, info1, offset, andNum])
     
     fPtr.seek(palBaseAddr)
     palBuf = fPtr.read(4 * palNum)
@@ -65,15 +67,19 @@ with open(sys.argv[1], 'rb') as fPtr:
     
     #import random
     #for blkInd in random.sample(xrange(blockNum), 5) :
-    flag = [False] * blockNum
-    for blkInd in xrange(blockNum) :
-        
+    
+    #tarW = width
+    #tarH = height
+    #pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
+
+    for blkInd in xrange(blockNum) : 
         tarW = width
         tarH = height
         pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
-        
         for picY in xrange(blockInfo[blkInd][1], blockInfo[blkInd][1] + blockInfo[blkInd][3]):
             for picX in xrange(blockInfo[blkInd][0], blockInfo[blkInd][2] + blockInfo[blkInd][2]):
+                if blockInfo[blkInd][6] == 0:
+                    continue
                 srcY = picY # + 2
                 srcX = picX # + 2
                 tileOut = srcY / tileH * tileInW + srcX / tileW
@@ -81,35 +87,28 @@ with open(sys.argv[1], 'rb') as fPtr:
                 getInd = ord(tileArray[tileOut][tileIn])
                 
                 baseAddr = blockInfo[blkInd][4] * 0x10
-                if blockInfo[blkInd][5] == '\x04\x03' and getInd > 0xf:
-                    if not flag[blkInd]:
-                        flag[blkInd] = True
-                    baseAddr = 0
-                                    
+                #if blockInfo[blkInd][5] == '\x04\x03':
+                
+                getInd = (getInd & (blockInfo[blkInd][7] << blockInfo[blkInd][6])) >> blockInfo[blkInd][6]
+
+
                 colBuf = palBuf[4 * (baseAddr + getInd): 4 * (baseAddr + getInd) + 4]
                 pixBuf[picY*tarW + picX] = (ord(colBuf[0]), ord(colBuf[1]), ord(colBuf[2]), ord(colBuf[3]))
                 
         from PIL import Image
         im = Image.new('RGBA', (tarW, tarH))
         im.putdata(tuple(pixBuf))
-        im.save(r'E:/test/part' + str(blkInd) + '.png')
+        im.save(r'E:\PVRTC\test3\part' + str(blkInd) + '.png')
 
-
-    for i in xrange(blockNum):
-        if flag[i]:
-            print 'Block %d error' % i
     
     from PIL import Image
     im = Image.new('RGBA', (tarW, tarH))
     im.putdata(tuple(pixBuf))
     #im.save(r'E:/test/' + str(fileN) + '.png')
-    im.save(r'E:/test/full2.png')
+    im.save(r'E:/PVRTC/full4.png')
     
     for blkInd in xrange(blockNum):
-        printB(blockInfo[blkInd][4])
-        print '|',
-        printB(blockInfo[blkInd][5])
-        print
+        print 'palInd = %d, offset = %02x, andNum = %02x' % (blockInfo[blkInd][4], blockInfo[blkInd][6], blockInfo[blkInd][7])
         
 #    
 
