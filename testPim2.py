@@ -46,7 +46,29 @@ def findAddr(fPtr, tarStr):
         else:
             yield fPtr.tell() - len(tarStr)
         
-        
+def fromTile(pixBuf, tarW, tarH,\
+             posX, posY, width, height, \
+             tiles, pal, \
+             palBase = 0, shift = 0, mark = 0xf):
+    
+    tileInW = width / tileW
+    
+    for picY in xrange(posY, posY + height):
+        for picX in xrange(posX, posX + width):
+            srcY = picY  #+ 2
+            srcX = picX  #+ 2
+            tileOut = srcY / tileH * tileInW + srcX / tileW
+            tileIn  = srcY % tileH * tileW + srcX % tileW 
+            getInd = ord(tiles[tileOut][tileIn])
+            
+            baseAddr = palBase * 0x10
+            getInd = ( getInd & (mark << shift) ) >> shift
+
+
+            colBuf = pal[4 * (baseAddr + getInd): 4 * (baseAddr + getInd) + 4]
+            pixBuf[picY*tarW + picX] = tuple([ord(colCh) for colCh in colBuf])
+
+            
 def parsePIM(fPtr, startAddr, fName):
     
     fPtr.seek(startAddr + 0x24)    
@@ -83,113 +105,46 @@ def parsePIM(fPtr, startAddr, fName):
             offY = struct.unpack('<H', fPtr.read(2))[0]
             pal16ind = struct.unpack('<H', fPtr.read(2))[0]
             info1 = fPtr.read(2)
-            offset = ord(fPtr.read(1))
-            andNum = ord(fPtr.read(1))
-            blockInfo.append([posX, posY, offX, offY, pal16ind, info1, offset, andNum])
-        
-
-        
+            shift = ord(fPtr.read(1))
+            mark = ord(fPtr.read(1))
+            blockInfo.append([posX, posY, offX, offY, pal16ind, info1, shift, mark])
+  
         lev0 = 0
         lev1 = 0
     
-        tarW = width
-        tarH = height
-        pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
+        pixBuf = [(0, 0, 0, 0)] * (width * height)
     
-        for blkInd in xrange(blockNum) : 
-            if blockInfo[blkInd][6] == 4:
-                continue
+        for blkInd in (bid for bid in xrange(blockNum) if blockInfo[bid][6] != 4):                        
             lev0 += 1
-            #tarW = width
-            #tarH = height
-            #pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
-    
-            for picY in xrange(blockInfo[blkInd][1], blockInfo[blkInd][1] + blockInfo[blkInd][3]):
-                for picX in xrange(blockInfo[blkInd][0], blockInfo[blkInd][0] + blockInfo[blkInd][2]):
-                    srcY = picY  #+ 2
-                    srcX = picX  #+ 2
-                    tileOut = srcY / tileH * tileInW + srcX / tileW
-                    tileIn  = srcY % tileH * tileW + srcX % tileW 
-                    getInd = ord(tileArray[tileOut][tileIn])
-                    
-                    baseAddr = blockInfo[blkInd][4] * 0x10
-    
-                    #if getInd & 0xf0 != 0 and not flag[blkInd] and blockInfo[blkInd][7] == 0xf:
-                        #print 'X = %d, Y = %d, value = %d' % (picX, picY, getInd)
-                        #flag[blkInd] = True
-                    getInd = getInd & blockInfo[blkInd][7]
-                    # getInd = (getInd & (blockInfo[blkInd][7] << blockInfo[blkInd][6])) >> blockInfo[blkInd][6]
-    
-    
-                    colBuf = palBuf[4 * (baseAddr + getInd): 4 * (baseAddr + getInd) + 4]
-                    pixBuf[picY*tarW + picX] = (ord(colBuf[0]), ord(colBuf[1]), ord(colBuf[2]), ord(colBuf[3]))
-                    
-            #from PIL import Image
-            #im = Image.new('RGBA', (tarW, tarH))
-            #im.putdata(tuple(pixBuf))
-            #im.save(r'E:\test\test1\part' + str(blkInd) + '.png')
-    
-    
-        # for i,flg in enumerate(flag):
-            # if flg:
-                # print 'block %d error' % i
+            
+            fromTile(pixBuf, width, height,\
+                     blockInfo[blkInd][0], blockInfo[blkInd][1],\
+                     blockInfo[blkInd][2], blockInfo[blkInd][3],\
+                     tileArray, palBuf,\
+                     blockInfo[blkInd][4], blockInfo[blkInd][6], blockInfo[blkInd][7])
         if lev0 > 0:
-            im = Image.new('RGBA', (tarW, tarH))
+            im = Image.new('RGBA', (width, height))
             im.putdata(tuple(pixBuf))
-            #im.save(r'E:/test/' + str(fileN) + '.png')
-            im.save(folder + fName + '.0.png')    
+            im.save(os.path.join(folder, fName) + '.0.png')    
             print 'Save ' + fName + '.0.png'
        
-        tarW = width
-        tarH = height
-        pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
+        pixBuf = [(0, 0, 0, 0)] * (width * height)
         
-        #flag = [False] * blockNum
-        
-        for blkInd in xrange(blockNum) :         
-            if blockInfo[blkInd][6] != 4:
-                continue
+        for blkInd in (bid for bid in xrange(blockNum) if blockInfo[bid][6] == 4):            
             lev1 +=  1
-            # tarW = width
-            # tarH = height
-            # pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
-            for picY in xrange(blockInfo[blkInd][1], blockInfo[blkInd][1] + blockInfo[blkInd][3]):
-                for picX in xrange(blockInfo[blkInd][0], blockInfo[blkInd][0] + blockInfo[blkInd][2]):
-                    srcY = picY # + 2
-                    srcX = picX # + 2
-                    tileOut = srcY / tileH * tileInW + srcX / tileW
-                    tileIn  = srcY % tileH * tileW + srcX % tileW 
-                    getInd = ord(tileArray[tileOut][tileIn])
-                    
-                    #if getInd & 0xf != 0 and not flag[blkInd] and blockInfo[blkInd][7] == 0xf:
-                        #print 'X = %d, Y = %d, value = %d' % (picX, picY, getInd)
-                        #flag[blkInd] = True
-                    baseAddr = blockInfo[blkInd][4] * 0x10
-                    #if blockInfo[blkInd][5] == '\x04\x03':
-                    
-                    #getInd = (getInd & (blockInfo[blkInd][7] << blockInfo[blkInd][6])) >> blockInfo[blkInd][6]
-                    getInd = (getInd & 0xf0) >> 4
-    
-                    colBuf = palBuf[4 * (baseAddr + getInd): 4 * (baseAddr + getInd) + 4]
-                    pixBuf[picY*tarW + picX] = (ord(colBuf[0]), ord(colBuf[1]), ord(colBuf[2]), ord(colBuf[3]))
-                    
-            # from PIL import Image
-            # im = Image.new('RGBA', (tarW, tarH))
-            # im.putdata(tuple(pixBuf))
-            # im.save(r'E:\test\test2\part' + str(blkInd) + '.png')
-    
+
+            fromTile(pixBuf, width, height,\
+                     blockInfo[blkInd][0], blockInfo[blkInd][1],\
+                     blockInfo[blkInd][2], blockInfo[blkInd][3],\
+                     tileArray, palBuf,\
+                     blockInfo[blkInd][4], blockInfo[blkInd][6], blockInfo[blkInd][7])
         
         if lev1 > 0:
-            im = Image.new('RGBA', (tarW, tarH))
+            im = Image.new('RGBA', (width, height))
             im.putdata(tuple(pixBuf))
-            #im.save(r'E:/test/' + str(fileN) + '.png')
-            im.save(folder + fName + '.1.png') 
+            im.save(os.path.join(folder, fName) + '.1.png') 
             print 'Save ' + fName + '.1.png'
         
-        # print '================'
-        # for i,flg in enumerate(flag):
-            # if flg:
-                # print 'block %d error' % i
         # for blkInd in xrange(blockNum):
             # print 'Start x = %d, y = %d, endx = %d, endy = %d' % \
                                # (blockInfo[blkInd][0], \
@@ -200,26 +155,17 @@ def parsePIM(fPtr, startAddr, fName):
             
     elif palNum == 0x100:
         
-        tarW = width
-        tarH = height
-        pixBuf = [(0, 0, 0, 0)] * (tarW * tarH)
+        pixBuf = [(0, 0, 0, 0)] * (width * height)
         
-        for picY in xrange(tarH):
-            for picX in xrange(tarW):
-                srcY = picY # + 2
-                srcX = picX # + 2
-                tileOut = srcY / tileH * tileInW + srcX / tileW
-                tileIn  = srcY % tileH * tileW + srcX % tileW 
-                getInd = ord(tileArray[tileOut][tileIn])
-                
-                baseAddr = 0
-                colBuf = palBuf[4 * (baseAddr + getInd): 4 * (baseAddr + getInd) + 4]
-                pixBuf[picY*tarW + picX] = (ord(colBuf[0]), ord(colBuf[1]), ord(colBuf[2]), ord(colBuf[3]))
-
-        im = Image.new('RGBA', (tarW, tarH))
+        fromTile(pixBuf, width, height,\
+                 0, 0,\
+                 width, height,\
+                 tileArray, palBuf,\
+                 0, 0, 0xff)
+        
+        im = Image.new('RGBA', (width, height))
         im.putdata(tuple(pixBuf))
-        #im.save(r'E:/test/' + str(fileN) + '.png')
-        im.save(folder + fName + '.0.png') 
+        im.save(os.path.join(folder, fName) + '.0.png') 
         print 'Save ' + fName + '.0.png'
 
         
@@ -228,14 +174,14 @@ checkDirs(folder)
 for curName in walk(u'.'):
     with open(curName, 'rb') as fPtr:
         ind = 0
+        fName = curName[curName.rindex('\\') + 1:]
         for stAdd in findAddr(fPtr, 'PIM2'):
-            fName = curName[curName.rindex('\\'):]
-            parsePIM(fPtr, stAdd, fName + '.%d' % ind)
-            ind += 1
+            ind += 1            
+            parsePIM(fPtr, stAdd, fName + '.%08x' % stAdd)
+        if ind == 0:
+            print 'Pass %s: no PIM2 included' % fName
         
-        
-        
-#    
+
 
         
     
