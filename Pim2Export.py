@@ -13,6 +13,19 @@ tileW = 16
 tileH = 8
 folder = r".\output"
 
+class BlockInfo:
+    def __init__(self):
+        self.posX = 0
+        self.posY = 0
+        self.xOffset = 0
+        self.yOffset = 0
+        self.pal16Index = 0
+        self.info = '\x00\x00'
+        self.shift = 0
+        self.mark = 0
+        
+
+
 def checkDirs(tarDir):
     if not os.path.isdir(tarDir):
         os.mkdir(tarDir)
@@ -21,20 +34,13 @@ def walk(adr):
     for root,dirs,files in os.walk(adr):
         for name in files:
             if not fnmatch.fnmatch(name, '*.py') and not fnmatch.fnmatch(name, '*.png'):
-                adrlist=os.path.join(root, name)
-                yield adrlist
+                yield os.path.join(root, name)
 
     
 def printB(rhs):
     for myC in rhs:
         print '%02x' % ord(myC),
         
-def readTiles(fPtr, tw, th):
-    retTile = []
-    for i in xrange(tw*th):
-        retTile.append(list(fPtr.read(tileW * tileH)))
-    return retTile
-
 def findAddr(fPtr, tarStr):
     while True:
         buf = fPtr.read(len(tarStr))
@@ -87,7 +93,7 @@ def parsePIM(fPtr, startAddr, fName):
     palBaseAddr = picAddr + picSize
     
     fPtr.seek(picAddr)
-    tileArray = readTiles(fPtr, tileInW, tileInH)
+    tileArray = [list(fPtr.read(tileW * tileH)) for i in xrange(tileInW * tileInH)]
     
     fPtr.seek(palBaseAddr)
     palBuf = fPtr.read(4 * palNum)
@@ -99,29 +105,31 @@ def parsePIM(fPtr, startAddr, fName):
         blockNum = struct.unpack('<I', fPtr.read(4))[0]
         blockInfo = []
         for i in xrange(blockNum):
-            posX = struct.unpack('<H', fPtr.read(2))[0]
-            posY = struct.unpack('<H', fPtr.read(2))[0]
-            offX = struct.unpack('<H', fPtr.read(2))[0]
-            offY = struct.unpack('<H', fPtr.read(2))[0]
-            pal16ind = struct.unpack('<H', fPtr.read(2))[0]
-            info1 = fPtr.read(2)
-            shift = ord(fPtr.read(1))
-            mark = ord(fPtr.read(1))
-            blockInfo.append([posX, posY, offX, offY, pal16ind, info1, shift, mark])
+            bInfo = BlockInfo()
+            bInfo.posX = struct.unpack('<H', fPtr.read(2))[0]
+            bInfo.posY = struct.unpack('<H', fPtr.read(2))[0]
+            bInfo.xOffset = struct.unpack('<H', fPtr.read(2))[0]
+            bInfo.yOffset = struct.unpack('<H', fPtr.read(2))[0]
+            bInfo.pal16Index = struct.unpack('<H', fPtr.read(2))[0]
+            bInfo.info = fPtr.read(2)
+            bInfo.shift = ord(fPtr.read(1))
+            bInfo.mark = ord(fPtr.read(1))
+            blockInfo.append(bInfo)
   
         lev0 = 0
         lev1 = 0
     
         pixBuf = [(0, 0, 0, 0)] * (width * height)
     
-        for blkInd in (bid for bid in xrange(blockNum) if blockInfo[bid][6] != 4):                        
+        for blkInd in (bid for bid in xrange(blockNum) if blockInfo[bid].shift != 4):                        
             lev0 += 1
             
             fromTile(pixBuf, width, height,\
-                     blockInfo[blkInd][0], blockInfo[blkInd][1],\
-                     blockInfo[blkInd][2], blockInfo[blkInd][3],\
+                     blockInfo[blkInd].posX, blockInfo[blkInd].posY,\
+                     blockInfo[blkInd].xOffset, blockInfo[blkInd].yOffset,\
                      tileArray, palBuf,\
-                     blockInfo[blkInd][4], blockInfo[blkInd][6], blockInfo[blkInd][7])
+                     blockInfo[blkInd].pal16Index,\
+                     blockInfo[blkInd].shift, blockInfo[blkInd].mark)
 
         if lev0 > 0:
             im = Image.new('RGBA', (width, height))
@@ -131,14 +139,15 @@ def parsePIM(fPtr, startAddr, fName):
        
         pixBuf = [(0, 0, 0, 0)] * (width * height)
         
-        for blkInd in (bid for bid in xrange(blockNum) if blockInfo[bid][6] == 4):            
+        for blkInd in (bid for bid in xrange(blockNum) if blockInfo[bid].shift == 4):            
             lev1 +=  1
 
             fromTile(pixBuf, width, height,\
-                     blockInfo[blkInd][0], blockInfo[blkInd][1],\
-                     blockInfo[blkInd][2], blockInfo[blkInd][3],\
+                     blockInfo[blkInd].posX, blockInfo[blkInd].posY,\
+                     blockInfo[blkInd].xOffset, blockInfo[blkInd].yOffset,\
                      tileArray, palBuf,\
-                     blockInfo[blkInd][4], blockInfo[blkInd][6], blockInfo[blkInd][7])
+                     blockInfo[blkInd].pal16Index,\
+                     blockInfo[blkInd].shift, blockInfo[blkInd].mark)
         
         if lev1 > 0:
             im = Image.new('RGBA', (width, height))
