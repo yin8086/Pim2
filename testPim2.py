@@ -5,23 +5,25 @@ Created on Wed Jun 19 23:35:28 2013
 @author: Stardrad
 """
 
-import struct, os
+import struct, os, fnmatch
 
 from PIL import Image
 
 tileW = 16
 tileH = 8
-folder = r"E:\PVRTC\newtest"
+folder = r".\output"
+
+def checkDirs(tarDir):
+    if not os.path.isdir(tarDir):
+        os.mkdir(tarDir)
 
 def walk(adr):
-    mylist=[]
     for root,dirs,files in os.walk(adr):
         for name in files:
-            adrlist=os.path.join(root, name)
-            if adrlist[-3:] != '.py':
-                print adrlist
-                mylist.append(adrlist)
-    return mylist
+            if not fnmatch.fnmatch(name, '*.py') and not fnmatch.fnmatch(name, '*.png'):
+                adrlist=os.path.join(root, name)
+                yield adrlist
+
     
 def printB(rhs):
     for myC in rhs:
@@ -222,7 +224,7 @@ def parsePIM(fPtr, startAddr, fName):
 
         
         
-    
+checkDirs(folder)    
 for curName in walk(u'.'):
     with open(curName, 'rb') as fPtr:
         ind = 0
