@@ -51,7 +51,7 @@ def fromTile(pixBuf, tarW, tarH,\
              tiles, pal, \
              palBase = 0, shift = 0, mark = 0xf):
     
-    tileInW = width / tileW
+    tileInW = tarW / tileW
     
     for picY in xrange(posY, posY + height):
         for picX in xrange(posX, posX + width):
@@ -122,6 +122,7 @@ def parsePIM(fPtr, startAddr, fName):
                      blockInfo[blkInd][2], blockInfo[blkInd][3],\
                      tileArray, palBuf,\
                      blockInfo[blkInd][4], blockInfo[blkInd][6], blockInfo[blkInd][7])
+
         if lev0 > 0:
             im = Image.new('RGBA', (width, height))
             im.putdata(tuple(pixBuf))
