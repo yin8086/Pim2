@@ -31,10 +31,10 @@ def checkDirs(tarDir):
         os.mkdir(tarDir)
 
 def walk(adr):
-    for root,dirs,files in os.walk(adr):
-        for name in files:
-            if not fnmatch.fnmatch(name, '*.py') and not fnmatch.fnmatch(name, '*.png'):
-                yield os.path.join(root, name)
+    root,dirs,files = os.walk(adr).next()
+    for name in files:
+        if not fnmatch.fnmatch(name, '*.py') and not fnmatch.fnmatch(name, '*.png'):
+            yield os.path.join(root, name)
 
     
 def printB(rhs):
@@ -53,18 +53,17 @@ def findAddr(fPtr, tarStr):
             yield fPtr.tell() - len(tarStr)
         
 def fromTile(pixBuf, tarW, tarH,\
-             posX, posY, width, height, \
+             posX, posY, xOffset, yOffset, \
              tiles, pal, \
              palBase = 0, shift = 0, mark = 0xf):
     
     tileInW = tarW / tileW
     
-    for picY in xrange(posY, posY + height):
-        for picX in xrange(posX, posX + width):
-            srcY = picY  #+ 2
-            srcX = picX  #+ 2
-            tileOut = srcY / tileH * tileInW + srcX / tileW
-            tileIn  = srcY % tileH * tileW + srcX % tileW 
+    for picY in xrange(posY, posY + yOffset):
+        for picX in xrange(posX, posX + xOffset):
+            tileOut = picY / tileH * tileInW + picX / tileW
+            tileIn  = picY % tileH * tileW + picX % tileW 
+            
             getInd = ord(tiles[tileOut][tileIn])
             
             baseAddr = palBase * 0x10
