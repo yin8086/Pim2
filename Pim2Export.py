@@ -5,13 +5,14 @@ Created on Wed Jun 19 23:35:28 2013
 @author: Stardrad
 """
 
-import struct, os, fnmatch
+import struct, os, fnmatch, time
 
 from PIL import Image
 
 tileW = 16
 tileH = 8
 folder = r".\output"
+Cimporve = 1
 
 class BlockInfo:
     def __init__(self):
@@ -42,36 +43,40 @@ def printB(rhs):
         print '%02x' % ord(myC),
         
 def findAddr(fPtr, tarStr):
+    content = fPtr.read()
+    begAdd = 0
     while True:
-        buf = fPtr.read(len(tarStr))
-        if len(buf) < len(tarStr):
-            break
-        elif buf != tarStr:
-            fPtr.seek(-len(buf) + 1, 1)
-            continue
+        fIndex = content.find(tarStr, begAdd)
+        if fIndex != -1:
+            begAdd = fIndex + len(tarStr)
+            yield fIndex
         else:
-            yield fPtr.tell() - len(tarStr)
+            break
+
+if Cimporve == 1:
+    from tilemod import fromTile
+else:
+                
+    def fromTile(pixBuf, tarW, tarH,\
+                 posX, posY, xOffset, yOffset, \
+                 tiles, pal, \
+                 palBase = 0, shift = 0, mark = 0xf):
         
-def fromTile(pixBuf, tarW, tarH,\
-             posX, posY, xOffset, yOffset, \
-             tiles, pal, \
-             palBase = 0, shift = 0, mark = 0xf):
-    
-    tileInW = tarW / tileW
-    
-    for picY in xrange(posY, posY + yOffset):
-        for picX in xrange(posX, posX + xOffset):
-            tileOut = picY / tileH * tileInW + picX / tileW
-            tileIn  = picY % tileH * tileW + picX % tileW 
-            
-            getInd = ord(tiles[tileOut][tileIn])
-            
-            baseAddr = palBase * 0x10
-            getInd = ( getInd & (mark << shift) ) >> shift
+        tileInW = tarW / tileW
+        
+        for picY in xrange(posY, posY + yOffset):
+            for picX in xrange(posX, posX + xOffset):
+                tileOut = picY / tileH * tileInW + picX / tileW
+                tileIn  = picY % tileH * tileW + picX % tileW 
+                
+                getInd = ord(tiles[tileOut][tileIn])
+                
+                baseAddr = palBase * 0x10
+                getInd = ( getInd & (mark << shift) ) >> shift
 
 
-            colBuf = pal[4 * (baseAddr + getInd): 4 * (baseAddr + getInd) + 4]
-            pixBuf[picY*tarW + picX] = tuple([ord(colCh) for colCh in colBuf])
+                colBuf = pal[4 * (baseAddr + getInd): 4 * (baseAddr + getInd) + 4]
+                pixBuf[picY*tarW + picX] = tuple([ord(colCh) for colCh in colBuf])
 
             
 def parsePIM(fPtr, startAddr, fName):
@@ -133,8 +138,8 @@ def parsePIM(fPtr, startAddr, fName):
         if lev0 > 0:
             im = Image.new('RGBA', (width, height))
             im.putdata(tuple(pixBuf))
-            im.save(os.path.join(folder, fName) + '.0.png')    
-            print 'Save ' + fName + '.0.png'
+            im.save('%s.0.png' % (os.path.join(folder, fName)))    
+            print 'Save %s.0.png' % fName
        
         pixBuf = [(0, 0, 0, 0)] * (width * height)
         
@@ -151,8 +156,8 @@ def parsePIM(fPtr, startAddr, fName):
         if lev1 > 0:
             im = Image.new('RGBA', (width, height))
             im.putdata(tuple(pixBuf))
-            im.save(os.path.join(folder, fName) + '.1.png') 
-            print 'Save ' + fName + '.1.png'
+            im.save('%s.1.png' % (os.path.join(folder, fName)))    
+            print 'Save %s.1.png' % fName
         
         # for blkInd in xrange(blockNum):
             # print 'Start x = %d, y = %d, endx = %d, endy = %d' % \
@@ -174,11 +179,11 @@ def parsePIM(fPtr, startAddr, fName):
         
         im = Image.new('RGBA', (width, height))
         im.putdata(tuple(pixBuf))
-        im.save(os.path.join(folder, fName) + '.0.png') 
-        print 'Save ' + fName + '.0.png'
+        im.save('%s.0.png' % (os.path.join(folder, fName)))    
+        print 'Save %s.0.png' % fName
 
         
-        
+ntime = time.time()        
 checkDirs(folder)    
 for curName in walk(u'.'):
     with open(curName, 'rb') as fPtr:
@@ -186,10 +191,11 @@ for curName in walk(u'.'):
         fName = curName[curName.rindex('\\') + 1:]
         for stAdd in findAddr(fPtr, 'PIM2'):
             ind += 1            
-            parsePIM(fPtr, stAdd, fName + '.%08x' % stAdd)
+            parsePIM(fPtr, stAdd, '%s.%08x' % (fName,stAdd) )
         if ind == 0:
             print 'Pass %s: no PIM2 included' % fName
-        
+
+print 'Total time: %lf' % (time.time() - ntime)
 
 
         
