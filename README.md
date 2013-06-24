@@ -6,6 +6,7 @@ Pim2 Picture Export Tool
 ### 2.Copyright and License
 
 Copyright (c) 2012-2013 Stardrad Yin, Pluto
+
 email:yin8086@gmail.com
 
 This software is distributed under the MIT License.
