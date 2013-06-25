@@ -1,4 +1,6 @@
 *.html
 *.c
 /build
+/dist
+/build
 

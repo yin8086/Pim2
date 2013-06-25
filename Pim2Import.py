@@ -169,17 +169,18 @@ def toPim2(fPtr, im, startAddr, layer):
         fPtr.write(''.join(tile))
     print 'Import to %s at %08x @ layer %d' % (pureName(fPtr.name), startAddr, layer)
 
-ntime = time.time()  
-for curName in walk(u'.'):
-    #with open(curName, 'rb') as fPtr:
-    fName = pureName(curName)
-    oriName = fName[:-15]
-    pos = int(fName[-14: -6], 16)
-    layer = int(fName[-5: -4])
-    if not os.path.isfile(os.path.join(folder, oriName)):
-        continue
-    im = Image.open(curName)
-    with open(os.path.join(folder, oriName), 'r+b') as binPtr:
-            toPim2(binPtr, im, pos, layer)
-
-print 'Total time: %lf' % (time.time() - ntime)
+if __name__ == '__main__':
+    ntime = time.time()  
+    for curName in walk(u'.'):
+        #with open(curName, 'rb') as fPtr:
+        fName = pureName(curName)
+        oriName = fName[:-15]
+        pos = int(fName[-14: -6], 16)
+        layer = int(fName[-5: -4])
+        if not os.path.isfile(os.path.join(folder, oriName)):
+            continue
+        im = Image.open(curName)
+        with open(os.path.join(folder, oriName), 'r+b') as binPtr:
+                toPim2(binPtr, im, pos, layer)
+    
+    print 'Total time: %lf' % (time.time() - ntime)

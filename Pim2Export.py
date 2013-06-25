@@ -11,7 +11,7 @@ from PIL import Image
 
 tileW = 16
 tileH = 8
-folder = r".\output"
+folder = r"."
 Cimporve = 1
 
 class BlockInfo:
@@ -27,14 +27,12 @@ class BlockInfo:
         
 
 
-def checkDirs(tarDir):
-    if not os.path.isdir(tarDir):
-        os.mkdir(tarDir)
-
 def walk(adr):
     root,dirs,files = os.walk(adr).next()
     for name in files:
-        if not fnmatch.fnmatch(name, '*.py') and not fnmatch.fnmatch(name, '*.png'):
+        if not fnmatch.fnmatch(name, '*.py') and \
+            not fnmatch.fnmatch(name, '*.png') and \
+            not fnmatch.fnmatch(name, '*.exe'):
             yield os.path.join(root, name)
 
     
@@ -182,20 +180,19 @@ def parsePIM(fPtr, startAddr, fName):
         im.save('%s.0.png' % (os.path.join(folder, fName)))    
         print 'Save %s.0.png' % fName
 
+if __name__ == '__main__':
+    ntime = time.time()   
+    for curName in walk(u'.'):
+        with open(curName, 'rb') as fPtr:
+            ind = 0
+            fName = curName[curName.rindex('\\') + 1:]
+            for stAdd in findAddr(fPtr, 'PIM2'):
+                ind += 1            
+                parsePIM(fPtr, stAdd, '%s.%08x' % (fName,stAdd) )
+            if ind == 0:
+                print 'Pass %s: no PIM2 included' % fName
         
-ntime = time.time()        
-checkDirs(folder)    
-for curName in walk(u'.'):
-    with open(curName, 'rb') as fPtr:
-        ind = 0
-        fName = curName[curName.rindex('\\') + 1:]
-        for stAdd in findAddr(fPtr, 'PIM2'):
-            ind += 1            
-            parsePIM(fPtr, stAdd, '%s.%08x' % (fName,stAdd) )
-        if ind == 0:
-            print 'Pass %s: no PIM2 included' % fName
-
-print 'Total time: %lf' % (time.time() - ntime)
+    print 'Total time: %lf' % (time.time() - ntime)
 
 
         
