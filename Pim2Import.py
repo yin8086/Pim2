@@ -179,7 +179,7 @@ if __name__ == '__main__':
         layer = int(fName[-5: -4])
         if not os.path.isfile(os.path.join(folder, oriName)):
             continue
-        im = Image.open(curName)
+        im = Image.open(curName).convert('RGBA')
         with open(os.path.join(folder, oriName), 'r+b') as binPtr:
                 toPim2(binPtr, im, pos, layer)
     
