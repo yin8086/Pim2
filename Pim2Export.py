@@ -28,12 +28,13 @@ class BlockInfo:
 
 
 def walk(adr):
-    root,dirs,files = os.walk(adr).next()
-    for name in files:
-        if not fnmatch.fnmatch(name, '*.py') and \
-            not fnmatch.fnmatch(name, '*.png') and \
-            not fnmatch.fnmatch(name, '*.exe'):
-            yield os.path.join(root, name)
+    #root,dirs,files = os.walk(adr).next()
+    for root,dirs, files in os.walk(adr):
+        for name in files:
+            if not fnmatch.fnmatch(name, '*.py') and \
+                not fnmatch.fnmatch(name, '*.png') and \
+                not fnmatch.fnmatch(name, '*.exe'):
+                yield os.path.join(root, name)
 
     
 def printB(rhs):

@@ -18,10 +18,11 @@ def pureName(curName):
     return curName[curName.rindex('\\') + 1:]
     
 def walk(adr):
-    root,dirs,files = os.walk(adr).next()
-    for name in files:
-        if fnmatch.fnmatch(name, '*.png'):
-            yield os.path.join(root, name)
+    #root,dirs,files = os.walk(adr).next()
+    for root,dirs, files in os.walk(adr):
+        for name in files:
+            if fnmatch.fnmatch(name, '*.png'):
+                yield os.path.join(root, name)
                 
 class BlockInfo:
     def __init__(self):
