@@ -14,7 +14,12 @@ def walk(adr):
             if fnmatch.fnmatch(name, '*.txt'):
                 yield os.path.join(root, name)
                 
-                
+def writeAdd(fOut, pos, val):
+    oldPos = fOut.tell()
+    fOut.seek(pos)
+    fOut.write(struct.pack('<I', val))
+    fOut.seek(oldPos)
+
 def getdata(myf, lineDeli):
     isfirst=True
     ltxt=[]
@@ -53,7 +58,8 @@ for curName in walk('script'):
         with open(curName[:-4], 'rb') as fOut:
             
             fOut.seek(0x8)
-            fOut.seek(struct.unpack('<I', fOut.read(4))[0])
+            f2StartAddr = struct.unpack('<I', fOut.read(4))[0]
+            fOut.seek(f2StartAddr)
             # Pass prefix zeros
             preZero = 0
             while fOut.read(1) == '\x00':
@@ -74,13 +80,21 @@ for curName in walk('script'):
             for addr,unistr in tarStrList:
                 if isFirst:
                     fOut.write(unistr)
+                    isFirst = False
+                else:
+                    fOut.write('\x00')
+                    writeAdd(fOut, addr, fOut.tell() - f2StartAddr)
+                    fOut.write(unistr)
             
-            fOut.write(finalStr)
+            if tarStrList[len(tarStrList) - 1][1] == '':
+                fOut.write('\x00')
+                print '****',
+            fLen = fOut.tell() - f2StartAddr
             numAlign = 4 - (fOut.tell() & 3)
-            fOut.write('\x00' * numAlign)
-            assert(fOut.tell() % 4 == 0)            
-            fOut.seek(0xc)
-            fOut.write(struct.pack('<I', fLen))
+            if numAlign < 4:
+                fOut.write('\x00' * numAlign)
+            assert(fOut.tell() % 4 == 0) 
+            writeAdd(fOut, 0xc, fLen)
                 
         print 'import %d scripts' % len(tarStrList)
     else:

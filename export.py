@@ -98,28 +98,29 @@ for curName in walk('script'):
             
             fSrc.seek(f2Start)
              
-            searchAdd = 0
-            idx = 0
-            while fSrc.tell() < f2Start + f2Len:
-                
-                while fSrc.read(1) == '\x00':
-                    pass
-                if fSrc.tell() >= f2Start + f2Len: # not EOF
-                    break
+             
+            while fSrc.read(1) == '\x00':
+                pass
+            if fSrc.tell() < f2Start + f2Len: # not EOF
                 fSrc.seek(-1,1)
-                
-                curOff = fSrc.tell() - f2Start            
-                curStr = readUntilZ(fSrc)
-                curTOff = getRealAdd(curOff, ptrBuf, searchAdd)
-                assert curTOff != 0, 'Error'
-                # curStr2 = ctrlChars.sub(convertCtr, curStr.replace('\x0a','\r\n').decode('utf8'))
-                if tarStrList[idx] == u'':
-                    curStr = ctrlChars.sub(convertCtr, curStr.replace('\x0a','\r\n').decode('utf8'))
-                else:
-                    curStr = ctrlChars.sub(convertCtr, tarStrList[idx])
-                idx += 1
-                outList.append([curTOff+f1Start, curStr])
-                searchAdd = curTOff + 4
+                searchAdd = 0
+                idx = 0
+                while fSrc.tell() < f2Start + f2Len:                   
+                    curOff = fSrc.tell() - f2Start            
+                    curStr = readUntilZ(fSrc)
+                    curTOff = getRealAdd(curOff, ptrBuf, searchAdd)
+                    assert curTOff != 0, 'Error'
+                    # curStr2 = ctrlChars.sub(convertCtr, curStr.replace('\x0a','\r\n').decode('utf8'))
+                    if curStr == '':
+                        curStr = u''
+                    else:
+                        if tarStrList[idx] == u'':
+                            curStr = ctrlChars.sub(convertCtr, curStr.replace('\x0a','\r\n').decode('utf8'))
+                        else:
+                            curStr = ctrlChars.sub(convertCtr, tarStrList[idx])
+                        idx += 1
+                    outList.append([curTOff+f1Start, curStr])
+                    searchAdd = curTOff + 4
                     
     
         if len(outList) > 0:
