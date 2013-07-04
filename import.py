@@ -86,9 +86,7 @@ for curName in walk('script'):
                     writeAdd(fOut, addr, fOut.tell() - f2StartAddr)
                     fOut.write(unistr)
             
-            if tarStrList[len(tarStrList) - 1][1] == '':
-                fOut.write('\x00')
-                print '****',
+            fOut.write('\x00')
             fLen = fOut.tell() - f2StartAddr
             numAlign = 4 - (fOut.tell() & 3)
             if numAlign < 4:
