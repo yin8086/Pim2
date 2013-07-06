@@ -69,10 +69,14 @@ else:
     def toTile(tiles, tarW, tarH,\
                  posX, posY, xOffset, yOffset, \
                  pixBuf, pal, \
-                 palBase = 0, shift = 0, mark = 0xf):
+                 palBase = 0, shift = 0, mark = 0xf, bpp = 0):
         
         tileInW = tarW / tileW
-        
+
+        if bpp == 1:
+            assert shift == 0 and mark == 0xff, 'Error fromTile'
+            mark = 0xf
+
         for picY in xrange(posY, posY + yOffset):
             for picX in xrange(posX, posX + xOffset):
                 
@@ -82,11 +86,13 @@ else:
                 tileIn  = picY % tileH * tileW + picX % tileW 
                 
                 if mark == 0xf:
+                    if bpp == 1:
+                        shift = (tileIn & 1) << 2                   
                     # H(igh) L(ow)  H0 + 0L(4) 0L + H0(0)
-                    bitOrigin = ord(tiles[tileOut][tileIn]) &  ( 0xf << ((shift + 4) % 8) )
+                    bitOrigin = ord(tiles[tileOut][tileIn >> bpp]) &  ( 0xf << ((shift + 4) % 8) )
                     bitSet    = getInd << shift
                     getInd = bitOrigin + bitSet
-                tiles[tileOut][tileIn] = chr(getInd)
+                tiles[tileOut][tileIn >> bpp] = chr(getInd)
 
 
 def toPim2(fPtr, im, startAddr, layer):
@@ -97,10 +103,7 @@ def toPim2(fPtr, im, startAddr, layer):
     
     assert width == im.size[0], 'Width Error'
     assert height == im.size[1], 'Height Error'
- 
-    tileInW = width / tileW
-    tileInH = height / tileH
-    
+
     fPtr.seek(startAddr + 0x18)
     picSize = struct.unpack('<I', fPtr.read(4))[0]
     headerSize = struct.unpack('<H', fPtr.read(2))[0]
@@ -109,16 +112,39 @@ def toPim2(fPtr, im, startAddr, layer):
     picAddr = startAddr + headerSize + 0x10
     palBaseAddr = picAddr + picSize
     
+    fPtr.seek(startAddr + 0x22)
+    dataType = ord(fPtr.read(1))
+    if  dataType != 0x83 and dataType != 0x03:
+        print '%s Other Pim2' % fName
+        return
+    
+    picBpp = 5 - ord(fPtr.read(1))
+    assert 0 <= picBpp <= 1, 'Err Bpp'
+
+    global tileW, tileH
+    if picBpp == 0:
+        tileW = 16
+        tileH = 8
+    else:
+        tileW = 32
+        tileH = 8
+
+    tileInW = width / tileW
+    tileInH = height / tileH
+    
     fPtr.seek(picAddr)
-    tileArray = [list(fPtr.read(tileW * tileH)) for i in xrange(tileInW * tileInH)]
+    tileArray = [list(fPtr.read( (tileW * tileH)>>picBpp )) for i in xrange(tileInW * tileInH)]
     # tileArray = [['\x00' for i in xrange(tileW * tileH)] for j in xrange(tileInW * tileInH)]
     
     fPtr.seek(palBaseAddr)
     palBuf = fPtr.read(4 * palNum)
 
-    if palNum > 0x100:
-        mapAddr = startAddr + 0x40
+    mapAddr = startAddr + 0x40
+    fPtr.seek(mapAddr)    
     
+    if fPtr.read(4) == 'BUW\x00':   
+        assert picBpp != 1, '4bpp layer pic'
+
         fPtr.seek(mapAddr + 4)
         blockNum = struct.unpack('<I', fPtr.read(4))[0]
         blockInfo = []
@@ -156,14 +182,14 @@ def toPim2(fPtr, im, startAddr, layer):
                      blockInfo[blkInd].shift, blockInfo[blkInd].mark) 
 
             
-    elif palNum == 0x100:
+    else:
         pixBuf = list(im.getdata())
         
         toTile(tileArray, width, height,\
              0, 0,\
              width, height,\
              pixBuf, palBuf,\
-             0, 0, 0xff)  
+             0, 0, 0xff, picBpp)  
         
     fPtr.seek(picAddr)        
     for tile in tileArray:

@@ -1,10 +1,10 @@
 def fromTile(pixBuf, int tarW, int tarH,\
              int posX, int posY, int xOffset, int yOffset, \
              tiles, pal, \
-             int palBase, int shift, int mark):
+             int palBase, int shift, int mark, int bpp = 0):
     
     cdef int tileH = 8
-    cdef int tileW = 16
+    cdef int tileW = 16 << bpp
     
     cdef int tileInW = tarW / tileW
   
@@ -16,12 +16,19 @@ def fromTile(pixBuf, int tarW, int tarH,\
     cdef int picY
     cdef int picX
     
+    if bpp == 1:
+        # assert shift == 0 and mark == 0xff, 'Error fromTile'
+        mark = 0xf
+    
     for picY in xrange(posY, posY + yOffset):
         for picX in xrange(posX, posX + xOffset):
             tileOut = picY / tileH * tileInW + picX / tileW
             tileIn  = picY % tileH * tileW + picX % tileW 
             
-            getInd = ord(tiles[tileOut][tileIn])
+            getInd = ord(tiles[tileOut][tileIn >> bpp])
+            
+            if bpp == 1:
+                shift = (tileIn & 1) << 2
             
             baseAddr = palBase * 0x10
             getInd = ( getInd & (mark << shift) ) >> shift
@@ -67,10 +74,10 @@ cdef int searchPal(col, pal, int palBase, int colNum):
 def toTile(tiles, int tarW, int tarH,\
              int posX, int posY, int xOffset, int yOffset, \
              pixBuf, pal, \
-             int palBase, int shift, int mark):
+             int palBase, int shift, int mark, int bpp = 0):
     
     cdef int tileH = 8
-    cdef int tileW = 16    
+    cdef int tileW = 16 << bpp   
     cdef int tileInW = tarW / tileW
     
     cdef int tileOut
@@ -82,6 +89,10 @@ def toTile(tiles, int tarW, int tarH,\
     cdef int picY
     cdef int picX
     
+    if bpp == 1:
+        # assert shift == 0 and mark == 0xff, 'Error fromTile'
+        mark = 0xf
+    
     for picY in xrange(posY, posY + yOffset):
         for picX in xrange(posX, posX + xOffset):
             
@@ -91,8 +102,10 @@ def toTile(tiles, int tarW, int tarH,\
             tileIn  = picY % tileH * tileW + picX % tileW 
             
             if mark == 0xf:
+                if bpp == 1:
+                    shift = (tileIn & 1) << 2
                 # H(igh) L(ow)  H0 + 0L(4) 0L + H0(0)
-                bitOrigin = ord(tiles[tileOut][tileIn]) &  ( 0xf << ((shift + 4) % 8) )
+                bitOrigin = ord(tiles[tileOut][tileIn >> bpp]) &  ( 0xf << ((shift + 4) % 8) )
                 bitSet    = getInd << shift
                 getInd = bitOrigin + bitSet
-            tiles[tileOut][tileIn] = chr(getInd)
+            tiles[tileOut][tileIn >> bpp] = chr(getInd)

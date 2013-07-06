@@ -59,7 +59,12 @@ else:
     def fromTile(pixBuf, tarW, tarH,\
                  posX, posY, xOffset, yOffset, \
                  tiles, pal, \
-                 palBase = 0, shift = 0, mark = 0xf):
+                 palBase = 0, shift = 0, mark = 0xf, bpp = 0):
+        
+        
+        if bpp == 1:
+            assert shift == 0 and mark == 0xff, 'Error fromTile'
+            mark = 0xf
         
         tileInW = tarW / tileW
         
@@ -68,7 +73,10 @@ else:
                 tileOut = picY / tileH * tileInW + picX / tileW
                 tileIn  = picY % tileH * tileW + picX % tileW 
                 
-                getInd = ord(tiles[tileOut][tileIn])
+                getInd = ord(tiles[tileOut][tileIn >> bpp])             
+                
+                if bpp == 1:
+                    shift = (tileIn & 1) << 2
                 
                 baseAddr = palBase * 0x10
                 getInd = ( getInd & (mark << shift) ) >> shift
@@ -83,10 +91,7 @@ def parsePIM(fPtr, startAddr, fName):
     fPtr.seek(startAddr + 0x24)    
     width  = struct.unpack('<H', fPtr.read(2))[0]
     height = struct.unpack('<H', fPtr.read(2))[0]
-    
-    tileInW = width / tileW
-    tileInH = height / tileH
-    
+        
     fPtr.seek(startAddr + 0x18)
     picSize = struct.unpack('<I', fPtr.read(4))[0]
     headerSize = struct.unpack('<H', fPtr.read(2))[0]
@@ -95,15 +100,38 @@ def parsePIM(fPtr, startAddr, fName):
     picAddr = startAddr + headerSize + 0x10
     palBaseAddr = picAddr + picSize
     
+    fPtr.seek(startAddr + 0x22)
+    dataType = ord(fPtr.read(1))
+    if  dataType != 0x83 and dataType != 0x03:
+        print '%s Other Pim2' % fName
+        return
+    
+    picBpp = 5 - ord(fPtr.read(1))
+    assert 0 <= picBpp <= 1, 'Err Bpp'
+
+    global tileW, tileH
+    if picBpp == 0:
+        tileW = 16
+        tileH = 8
+    else:
+        tileW = 32
+        tileH = 8
+    
+    tileInW = width / tileW
+    tileInH = height / tileH
+    
     fPtr.seek(picAddr)
-    tileArray = [list(fPtr.read(tileW * tileH)) for i in xrange(tileInW * tileInH)]
+    tileArray = [list(fPtr.read( (tileW * tileH)>>picBpp )) for i in xrange(tileInW * tileInH)]
     
     fPtr.seek(palBaseAddr)
     palBuf = fPtr.read(4 * palNum)
     
-    if palNum > 0x100:
-        mapAddr = startAddr + 0x40
     
+    mapAddr = startAddr + 0x40
+    fPtr.seek(mapAddr)
+    
+    if fPtr.read(4) == 'BUW\x00':   
+        assert picBpp != 1, '4bpp layer pic'
         fPtr.seek(mapAddr + 4)
         blockNum = struct.unpack('<I', fPtr.read(4))[0]
         blockInfo = []
@@ -166,20 +194,24 @@ def parsePIM(fPtr, startAddr, fName):
                                 # blockInfo[blkInd][1] + blockInfo[blkInd][3]),
             # print 'palInd = %d, offset = %02x, andNum = %02x' % (blockInfo[blkInd][4], blockInfo[blkInd][6], blockInfo[blkInd][7])
             
-    elif palNum == 0x100:
-        
+    else:
+
         pixBuf = [(0, 0, 0, 0)] * (width * height)
         
         fromTile(pixBuf, width, height,\
                  0, 0,\
                  width, height,\
                  tileArray, palBuf,\
-                 0, 0, 0xff)
+                 0, 0, 0xff, picBpp)
         
         im = Image.new('RGBA', (width, height))
         im.putdata(tuple(pixBuf))
         im.save('%s.0.png' % (os.path.join(folder, fName)))    
-        print 'Save %s.0.png' % fName
+        print 'Save %s.0.png' % fName,
+        if picBpp == 1:
+            print ' : 4bpp'
+        else:
+            print
 
 if __name__ == '__main__':
     ntime = time.time()   
@@ -187,6 +219,7 @@ if __name__ == '__main__':
         with open(curName, 'rb') as fPtr:
             ind = 0
             fName = curName[curName.rindex('\\') + 1:]
+            folder = curName[:curName.rindex('\\')]
             for stAdd in findAddr(fPtr, 'PIM2'):
                 ind += 1            
                 parsePIM(fPtr, stAdd, '%s.%08x' % (fName,stAdd) )
