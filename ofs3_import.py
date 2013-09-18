@@ -25,7 +25,7 @@ for fn in fl:
             inoffset -= 0x10
         if not os.path.exists(fn):
             continue
-        print u'µ±Ç°½øĞĞ·â°üµÄÎÄ¼şÊÇ£º%s\n'%fn
+        print u'å½“å‰è¿›è¡Œå°åŒ…çš„æ–‡ä»¶æ˜¯ï¼š%s\n'%fn
         for i in xrange(files):
             data = open(fn + '\\' + '%s.bin'%i,'rb').read()
             #print 'headoffset:',hex(infile.tell()),'offset:',hex(inoffset-0x10),'size:',hex(len(data))
